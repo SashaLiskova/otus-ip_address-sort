@@ -1,39 +1,28 @@
 #include "Ipv4.h"
-#include <algorithm>
 #include <cstdint>
-#include <exception>
+#include <iostream>
 #include <limits>
-#include <sstream>
 #include <stdexcept>
-
-namespace
-{
-
-bool hasLeadingZero(const std::string &token)
-{
-  return token.size() > 1 and token[0] == '0';
-}
-
-int numOfDotsInInput(const std::string &input)
-{
-  return std::count(input.begin(), input.end(), '.');
-}
-
-} // namespace
 
 namespace ipv4
 {
 
-Ipv4::Ipv4(const Address &address) : mAddress(address) {}
+constexpr uint32_t ipv4Size = 4;
+constexpr uint32_t mask = 0xFF;
+constexpr uint32_t octSize = 8;
+
+Ipv4::Ipv4(uint32_t address) : mAddress{address} {}
 
 Ipv4::Ipv4(const Ipv4 &input) { mAddress = input.mAddress; }
-Ipv4::Ipv4(const Ipv4 &&input) { mAddress = input.mAddress; }
 
-Address Ipv4::getAddress() const { return mAddress; }
+uint32_t Ipv4::getAddress() const { return mAddress; }
 
-uint8_t Ipv4::getByte(const Bytes &byte) const
+uint8_t Ipv4::getByte(Bytes byte) const
 {
-  return mAddress.at(static_cast<size_t>(byte));
+  return static_cast<uint8_t>(
+             (mAddress >>
+              (octSize * (ipv4Size - 1 - static_cast<uint32_t>(byte))))) &
+         mask;
 }
 
 bool Ipv4::operator==(const Ipv4 &otherIp) const
@@ -47,60 +36,54 @@ std::string Ipv4::toString() const
 {
   std::string result = "";
 
-  for (size_t i = 0; i < mAddress.size(); ++i)
+  for (uint32_t i = 0; i < ipv4Size; ++i)
   {
-    result += std::to_string(mAddress[i]);
+    result += std::to_string(getByte(static_cast<Bytes>(i)));
 
-    if (i + 1 < mAddress.size())
+    if (i + 1 < ipv4Size)
       result += ".";
   }
   return result;
 }
 
-Address parseStringIntoIpv4(const std::string &input)
+bool Ipv4::anyOfBytesEqualTo(uint8_t value) const
 {
-  std::istringstream ss(input);
-  constexpr int maxNumOfDots = 3;
-  if (numOfDotsInInput(input) != maxNumOfDots)
+  for (uint32_t i = 0; i < ipv4Size; ++i)
+  {
+    uint8_t byte = (mAddress >> (i * octSize)) & mask;
+    if (byte == value)
+      return true;
+  }
+  return false;
+}
+
+uint32_t makeIpv4Address(const std::vector<std::string> &parsedInput)
+{
+
+  if (parsedInput.size() != ipv4Size)
     throw std::invalid_argument("address is wrong format");
 
-  std::string token;
-  Address ipAddress;
-  size_t counter = 0;
-  int num;
+  uint32_t ipv4{0};
 
-  while (std::getline(ss, token, '.'))
+  for (size_t i = 0; i < parsedInput.size(); ++i)
   {
-    if (counter == ipAddressSize)
-      throw std::invalid_argument(input +
-                                  " address has more data than expected");
-
-    if (hasLeadingZero(token))
-      throw std::invalid_argument(token + " can't start from 0");
-
-    try
+    const std::string val = parsedInput.at(i);
+    if (val.size() > 1 and val.at(0) == '0')
     {
-      num = std::stoi(token);
+      throw std::invalid_argument("satrts with 0");
     }
-    catch (std::exception &ex)
-    {
-      throw std::invalid_argument(input + " has wrong format");
-    }
+
+    int num = std::stoi(parsedInput.at(i));
 
     if (num < std::numeric_limits<uint8_t>::min() or
         num > std::numeric_limits<uint8_t>::max())
       throw std::invalid_argument(std::to_string(num) +
                                   " is out of range of 8 byte ip block num ");
 
-    ipAddress[counter] = static_cast<uint8_t>(num);
-
-    ++counter;
+    ipv4 = (ipv4 << octSize) | static_cast<uint8_t>(num);
   }
 
-  if (counter != ipAddressSize)
-    throw std::invalid_argument(input + " address in not full");
-
-  return ipAddress;
+  return ipv4;
 }
 
 std::ostream &operator<<(std::ostream &output, const Ipv4 &ipv4)
