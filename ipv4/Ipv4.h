@@ -6,12 +6,12 @@
 namespace ipv4
 {
 
-enum class Bytes : int
+enum class Bytes : uint32_t
 {
-  Firts = 0,
-  Second = 1,
-  Third = 2,
-  Forth = 3
+  Firts,
+  Second,
+  Third,
+  Forth
 };
 
 class Ipv4

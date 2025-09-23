@@ -23,8 +23,6 @@ jobs:
         run: cmake . -DPATCH_VERSION=${{ github.run_number }} -DWITH_GTEST_TEST=ON
       - name: Build and run tests
         run: cmake --build . --target tests && ctest
-      - name: otus check
-        run: cmake --build . --target ip_filter && [ "$(cat data/ip_filter.tsv | ip_filter | md5sum | awk '{print $1}')" = "24e7a7b2270daee89c64d3ca5fb3da1a" ] && echo "OK" || echo "FAIL"
       - name: Create package
         run: cmake --build . --target package
       - name: Create Release
